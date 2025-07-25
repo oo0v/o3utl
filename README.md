@@ -11,7 +11,7 @@ This is a command execution helper tool that simplifies media encoding and other
 
 ### Essential for default presets
 - **FFmpeg**
-  - Download FFmpeg (gyan build) from: https://www.gyan.dev/ffmpeg/builds/
+  - Download FFmpeg from: https://www.gyan.dev/ffmpeg/builds/
   - Create a `bin` folder inside the `o3utl` directory
   - Extract and copy `ffmpeg.exe` to the `o3utl/bin/`
   - All default presets run bin/ffmpeg.exe. If you want to use your own ffmpeg, modify the commands written in tasks.ini
