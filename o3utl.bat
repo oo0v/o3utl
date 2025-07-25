@@ -1,10 +1,6 @@
 @echo off
 setlocal EnableDelayedExpansion
 
-echo o3utl v1.0.3
-echo https://github.com/oo0v/o3utl
-echo.
-
 call :main %*
 set "EXIT_CODE=!errorlevel!"
 endlocal

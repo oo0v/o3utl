@@ -15,22 +15,55 @@ try {
     $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
     # Input file validation
-    if (-not (Test-Path $InputFile -PathType Leaf)) {
+    if (-not (Test-Path -Path $InputFile -PathType Leaf)) {
         throw "Input file not found: $InputFile"
     }
 
     # Convert to absolute path
-    $InputFile = Resolve-Path $InputFile
+    $InputFile = (Resolve-Path -Path $InputFile).Path
 
     # Load tasks.ini
-    $ConfigFile = Join-Path $ScriptDir "..\tasks.ini"
-    if (-not (Test-Path $ConfigFile -PathType Leaf)) {
+    $ConfigFile = Join-Path -Path $ScriptDir -ChildPath "..\tasks.ini"
+    if (-not (Test-Path -Path $ConfigFile -PathType Leaf)) {
         throw "tasks.ini not found at: $ConfigFile"
     }
 
     # Set working directory to tasks.ini directory
-    $WorkingDir = Split-Path -Parent (Resolve-Path $ConfigFile)
-    Set-Location $WorkingDir
+    $WorkingDir = Split-Path -Parent (Resolve-Path -Path $ConfigFile).Path
+    Set-Location -Path $WorkingDir
+
+    # bin directory path
+    $BinDir = Join-Path -Path $ScriptDir -ChildPath "..\bin"
+
+    # Binary search function
+    function Find-Binary {
+        param([string]$BinaryName)
+        
+        # 1. Search in bin folder
+        if (Test-Path $BinDir) {
+            $binPath = Join-Path $BinDir "$BinaryName.exe"
+            if (Test-Path $binPath) {
+                return $binPath
+            }
+        }
+        
+        # 2. Search in environment variable PATH
+        try {
+            $pathResult = Get-Command $BinaryName -ErrorAction Stop
+            return $pathResult.Path
+        } catch {
+            return $null
+        }
+    }
+
+    # Function to extract binary name from command
+    function Get-BinaryFromCommand {
+        param([string]$Command)
+        
+        # Extract first word (binary name) from command
+        $firstWord = ($Command -split '\s+')[0]
+        return $firstWord
+    }
 
     # INI parsing function
     function Read-ConfigurationFile {
@@ -40,7 +73,7 @@ try {
         $CurrentSection = ""
         
         try {
-            $content = Get-Content $FilePath -Encoding UTF8 -ErrorAction Stop
+            $content = Get-Content -Path $FilePath -Encoding UTF8 -ErrorAction Stop
             
             foreach ($line in $content) {
                 $cleanLine = $line.Trim()
@@ -159,177 +192,284 @@ try {
 
     Write-Host "Selected tasks: $($selectedProfiles -join ', ')" -ForegroundColor Green
 
-    # Profile validation function
-    function Test-ProfileConfiguration {
-        param(
-            [System.Collections.Specialized.OrderedDictionary]$Configuration,
-            [array]$ProfileNames
-        )
-        
-        $validatedProfiles = @()
-        
-        foreach ($profileName in $ProfileNames) {
-            if (-not $Configuration.Contains($profileName)) {
-                Write-Host "Error: Profile '$profileName' not found" -ForegroundColor Red
-                continue
-            }
-            
-            $command = $Configuration[$profileName]["cmd"]
-            if ([string]::IsNullOrWhiteSpace($command)) {
-                Write-Host "Error: No cmd in task '$profileName'" -ForegroundColor Red
-                continue
-            }
-            
-            # Check for {INPUT} placeholder existence
-            if ($command -notmatch '\{INPUT\}') {
-                Write-Host "Warning: Task '$profileName' does not contain {INPUT} placeholder" -ForegroundColor Yellow
-            }
-            
-            Write-Host "Task validated: '$profileName'" -ForegroundColor Green
-            $validatedProfiles += @{
-                Profile = $profileName
-                Command = $command
-            }
+    # Binary existence check and profile validation
+    $validProfiles = @()
+    foreach ($prof in $selectedProfiles) {
+        if (-not $Config.Contains($prof)) {
+            Write-Host "Error: Profile '$prof' not found" -ForegroundColor Red
+            continue
         }
         
-        return $validatedProfiles
+        $cmd = $Config[$prof]["cmd"]
+        if (-not $cmd) {
+            Write-Host "Error: No cmd in task '$prof'" -ForegroundColor Red
+            continue
+        }
+        
+        # Extract binary name from command
+        $binaryName = Get-BinaryFromCommand $cmd
+        $binaryPath = Find-Binary $binaryName
+        
+        if ($binaryPath) {
+            Write-Host "Binary found for '$prof': $binaryPath" -ForegroundColor Green
+            $validProfiles += @{
+                Profile = $prof
+                Command = $cmd
+                BinaryPath = $binaryPath
+            }
+        } else {
+            Write-Host "Error: Binary '$binaryName' not found for task '$prof'" -ForegroundColor Red
+            Write-Host "  Searched in: $BinDir and system PATH" -ForegroundColor Yellow
+        }
     }
 
-    $validProfiles = Test-ProfileConfiguration -Configuration $Config -ProfileNames $selectedProfiles
-
     if ($validProfiles.Count -eq 0) {
+        throw "No valid tasks to process (no binaries found)."
+    }
+
+    # Execute each profile in parallel
+    $processes = @()
+    $tempDir = [System.IO.Path]::GetTempPath()
+    $windowIndex = 0
+
+    foreach ($profileInfo in $validProfiles) {
+        $prof = $profileInfo.Profile
+        $cmd = $profileInfo.Command
+        $binaryPath = $profileInfo.BinaryPath
+        
+        # Generate unique task ID
+        $taskId = "task_$(Get-Random)"
+        
+        # Replace binary path in command
+        $binaryName = Get-BinaryFromCommand $cmd
+        $fullCmd = $cmd -replace "^$([regex]::Escape($binaryName))", "`"$binaryPath`""
+        $fullCmd = $fullCmd -replace '\{INPUT\}', ($InputFile -replace '"', '""')
+        
+        # Handle FFmpeg 2-pass log files with individual paths
+        if ($fullCmd -match "-pass\s+[12]") {
+            $passLogFile = Join-Path $tempDir "ffmpeg2pass_${taskId}"
+            
+            # Add -passlogfile option to both Pass 1 and Pass 2
+            # First ffmpeg command (Pass 1)
+            $fullCmd = $fullCmd -replace "(-pass\s+1)", "-passlogfile `"$passLogFile`" `$1"
+            
+            # Second ffmpeg command (Pass 2, after &&)
+            $fullCmd = $fullCmd -replace "&&\s*([^&]*?)(-pass\s+2)", "&& `$1-passlogfile `"$passLogFile`" `$2"
+            
+            # Track log files for cleanup
+            $allTempFiles += "${passLogFile}-0.log"
+            $allTempFiles += "${passLogFile}-0.log.mbtree"
+        }
+        
+        Write-Host "Starting: $prof" -ForegroundColor Yellow
+        Write-Host "Modified command: $fullCmd" -ForegroundColor Gray
+        
+        # Result file path (considering special characters and escaping)
+        $resultFile = Join-Path $tempDir "o3enc_$(Get-Random).txt"
+        $allTempFiles += $resultFile
+        
+        # Create temporary batch file (considering special characters and escaping)
+        $tempBatch = Join-Path $tempDir "o3enc_$(Get-Random).bat"
+        $allTempFiles += $tempBatch
+        
+        # Calculate window position
+        $xPos = 100 + ($windowIndex * 60)
+        $yPos = 100 + ($windowIndex * 60)
+        
+        # Create batch command (considering special characters)
+        $safeProf = $prof -replace '[^\w\-]', '_'  # Replace non-alphanumeric characters except hyphens with underscores
+        
+        # Handle 2-pass encoding by splitting and executing commands
+        if ($fullCmd -match " && ") {
+            $commands = $fullCmd -split ' && '
+            $pass1Cmd = $commands[0].Trim()
+            $pass2Cmd = $commands[1].Trim()
+            
+            $batchCmd = @"
+@echo off
+title task: $safeProf
+mode con: cols=120 lines=35
+echo Starting tasks: $prof
+echo Task ID: $taskId
+echo Pass log file: $passLogFile
+echo.
+echo $pass1Cmd
+echo.
+echo Executing First Pass
+$pass1Cmd
+if %ERRORLEVEL% neq 0 (
+    echo FAILED > "$resultFile"
+    echo.
+    echo Pass 1 Failed: $prof [Error: %ERRORLEVEL%]
+    echo Press any key to close this window...
+    pause > nul
+    exit
+)
+echo First Pass completed successfully
+echo.
+echo $pass2Cmd
+echo.
+echo Executing Second Pass
+$pass2Cmd
+if %ERRORLEVEL% equ 0 (
+    echo SUCCESS > "$resultFile"
+    echo.
+    echo Task Success: $prof
+    timeout /t 2 > nul
+    exit
+) else (
+    echo FAILED > "$resultFile"
+    echo.
+    echo Second Pass Failed: $prof [Error: %ERRORLEVEL%]
+    echo Press any key to close this window...
+    pause > nul
+    exit
+)
+"@
+        } else {
+            # Single pass case
+            $batchCmd = @"
+@echo off
+title task: $safeProf
+mode con: cols=120 lines=35
+echo Starting tasks: $prof
+echo Command: $fullCmd
+echo Task ID: $taskId
+echo.
+echo Executing command
+$fullCmd
+echo.
+echo Command completed with exit code: %ERRORLEVEL%
+if %ERRORLEVEL% equ 0 (
+    echo SUCCESS > "$resultFile"
+    echo.
+    echo Task Success: $prof
+    timeout /t 2 > nul
+    exit
+) else (
+    echo FAILED > "$resultFile"
+    echo.
+    echo Task Failed: $prof [Error: %ERRORLEVEL%]
+    echo Press any key to close this window...
+    pause > nul
+    exit
+)
+"@
+        }
+        
+        # Create temporary batch file (considering special characters and escaping)
+        $batchCmd | Out-File -FilePath $tempBatch -Encoding ASCII
+        
+        # Start process (launch in normal window)
+        $process = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$tempBatch`"" -PassThru -WindowStyle Normal
+        
+        # Adjust window position after a short wait (execute in background)
+        Start-Job -ScriptBlock {
+            param($processId, $x, $y, $safeProf)
+            Start-Sleep -Seconds 1
+            Add-Type -TypeDefinition @"
+                using System;
+                using System.Runtime.InteropServices;
+                using System.Diagnostics;
+                public class WindowHelper {
+                    [DllImport("user32.dll")]
+                    public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+                    [DllImport("user32.dll")]
+                    public static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+                    [DllImport("user32.dll")]
+                    public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+                }
+"@
+            try {
+                $windowTitle = "task: $safeProf"
+                $hwnd = [WindowHelper]::FindWindow($null, $windowTitle)
+                if ($hwnd -ne [IntPtr]::Zero) {
+                    [WindowHelper]::ShowWindow($hwnd, 1) # SW_SHOWNORMAL
+                    [WindowHelper]::SetWindowPos($hwnd, [IntPtr]::Zero, $x, $y, 0, 0, 0x0001) # SWP_NOSIZE
+                }
+            } catch {
+                # Ignore errors
+            }
+        } -ArgumentList $process.Id, $xPos, $yPos, $safeProf | Out-Null
+        
+        # Save process information
+        $processes += @{
+            Profile = $prof
+            Process = $process
+            ResultFile = $resultFile
+            TempBatch = $tempBatch
+            TaskId = $taskId
+            Processed = $false
+        }
+        
+        $windowIndex++
+        Start-Sleep -Milliseconds 200  # Window startup interval
+    }
+
+    if ($processes.Count -eq 0) {
         throw "No valid tasks to process."
     }
 
-    # Command line generation function
-    function New-SafeCommandLine {
-        param(
-            [string]$CommandTemplate,
-            [string]$InputPath
-        )
-        
-        # Escape input file path
-        $escapedInput = $InputPath -replace '"', '""'
-        
-        # Expand environment variables and replace {INPUT}
-        $expandedCommand = [System.Environment]::ExpandEnvironmentVariables($CommandTemplate)
-        $finalCommand = $expandedCommand -replace '\{INPUT\}', "`"$escapedInput`""
-        
-        return $finalCommand
-    }
-
-    # Unique task ID generation function
-    function New-UniqueTaskIdentifier {
-        return "task_$([System.Guid]::NewGuid().ToString('N').Substring(0,8))"
-    }
-
-    # Process execution function
-    function Invoke-Process {
-        param(
-            [string]$Command,
-            [string]$WorkingDirectory
-        )
-        
-        $processInfo = New-Object System.Diagnostics.ProcessStartInfo
-        $processInfo.FileName = "cmd.exe"
-        $processInfo.Arguments = "/c `"$Command`""
-        $processInfo.WorkingDirectory = $WorkingDirectory
-        $processInfo.UseShellExecute = $false
-        $processInfo.CreateNoWindow = $false
-        
-        $process = New-Object System.Diagnostics.Process
-        $process.StartInfo = $processInfo
-        
-        if (-not $process.Start()) {
-            throw "Failed to start process"
-        }
-        
-        $process.WaitForExit()
-        
-        if ($process.ExitCode -ne 0) {
-            throw "Process failed with exit code $($process.ExitCode)"
-        }
-    }
-
-    # Execute sequentially for each profile
     Write-Host ""
-    Write-Host "Starting $(@($validProfiles).Count) task(s)..." -ForegroundColor Green
+    Write-Host "Monitoring $($processes.Count) task process(es)..." -ForegroundColor Green
 
-    $completionResults = @()
-    $failureCount = 0
+    # Process monitoring
+    $completed = @()
+    $remainingProcesses = $processes.Count
+    $failCount = 0
 
-    foreach ($profileInfo in $validProfiles) {
-        $profileName = $profileInfo.Profile
-        $commandTemplate = $profileInfo.Command
+    while ($remainingProcesses -gt 0) {
+        Start-Sleep -Seconds 2
         
-        $taskIdentifier = New-UniqueTaskIdentifier
-        $fullCommand = New-SafeCommandLine -CommandTemplate $commandTemplate -InputPath $InputFile
-        
-        # 2-pass log file processing
-        $tempDirectory = [System.IO.Path]::GetTempPath()
-        $passLogFile = $null
-        
-        if ($fullCommand -match "-pass\s+[12]") {
-            $passLogFile = Join-Path $tempDirectory "2pass_${taskIdentifier}"
+        foreach ($proc in $processes) {
+            # Skip already processed processes
+            if ($proc.Processed) { continue }
             
-            # Add -passlogfile option to both Pass 1 and Pass 2
-            $fullCommand = $fullCommand -replace "(-pass\s+1)", "-passlogfile `"$passLogFile`" `$1"
-            $fullCommand = $fullCommand -replace "(&.*?-pass\s+2)", "`$1 -passlogfile `"$passLogFile`""
-            
-            # Track log files for cleanup
-            $script:allTempFiles += "${passLogFile}-0.log"
-            $script:allTempFiles += "${passLogFile}-0.log.mbtree"
-        }
-        
-        Write-Host ""
-        Write-Host "Processing: $profileName" -ForegroundColor Yellow
-        Write-Host "$fullCommand" -ForegroundColor Gray
-        
-        try {
-            if ($fullCommand -match " && ") {
-                # 2-pass processing
-                $commandParts = $fullCommand -split ' && ', 2
-                $firstPassCommand = $commandParts[0].Trim()
-                $secondPassCommand = $commandParts[1].Trim()
+            # Check process termination
+            if ($proc.Process.HasExited) {
+                $proc.Processed = $true
+                $remainingProcesses--
                 
-                Write-Host "Starting Pass 1..." -ForegroundColor Cyan
-                Invoke-Process -Command $firstPassCommand -WorkingDirectory $WorkingDir
-                
-                Write-Host "Pass 1 completed. Starting Pass 2..." -ForegroundColor Cyan
-                Invoke-Process -Command $secondPassCommand -WorkingDirectory $WorkingDir
-            } else {
-                # Single-pass processing
-                Write-Host "Starting task..." -ForegroundColor Cyan
-                Invoke-Process -Command $fullCommand -WorkingDirectory $WorkingDir
+                # Check result file (wait a bit before checking)
+                Start-Sleep -Milliseconds 1000
+                if (Test-Path $proc.ResultFile) {
+                    try {
+                        $result = (Get-Content $proc.ResultFile -ErrorAction Stop).Trim()
+                        if ($result -eq "SUCCESS") {
+                            Write-Host "Success: $($proc.Profile)" -ForegroundColor Green
+                            $completed += @{ Profile = $proc.Profile; Success = $true }
+                        } else {
+                            Write-Host "Failed: $($proc.Profile)" -ForegroundColor Red
+                            $completed += @{ Profile = $proc.Profile; Success = $false }
+                            $failCount++
+                        }
+                    } catch {
+                        Write-Host "Error reading result: $($proc.Profile)" -ForegroundColor Yellow
+                        $completed += @{ Profile = $proc.Profile; Success = $false }
+                        $failCount++
+                    }
+                } else {
+                    Write-Host "No result file: $($proc.Profile)" -ForegroundColor Yellow
+                    $completed += @{ Profile = $proc.Profile; Success = $false }
+                    $failCount++
+                }
             }
-            
-            Write-Host "Success: $profileName" -ForegroundColor Green
-            $completionResults += @{ Profile = $profileName; Success = $true }
-            
-        } catch {
-            Write-Host "Failed: $profileName" -ForegroundColor Red
-            Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Yellow
-            $completionResults += @{ Profile = $profileName; Success = $false; Error = $_.Exception.Message }
-            $failureCount++
         }
     }
 
-    # Results
+    # Results summary
     Write-Host ""
     Write-Host "Task Summary" -ForegroundColor Yellow
-    foreach ($result in $completionResults) {
+    foreach ($result in $completed) {
         $status = if ($result.Success) { "SUCCESS" } else { "FAILED" }
         $statusColor = if ($result.Success) { "Green" } else { "Red" }
         Write-Host "$($result.Profile): $status" -ForegroundColor $statusColor
-        if (-not $result.Success -and $result.Error) {
-            Write-Host "  Error: $($result.Error)" -ForegroundColor Yellow
-        }
     }
     
     # Final result determination
-    if ($failureCount -gt 0) {
+    if ($failCount -gt 0) {
         Write-Host ""
-        Write-Host "$failureCount of $(@($completionResults).Count) tasks failed." -ForegroundColor Red
+        Write-Host "$failCount of $($completed.Count) tasks failed." -ForegroundColor Red
         exit 1
     } else {
         Write-Host ""
@@ -346,26 +486,30 @@ try {
     # Cleanup processing
     try {
         # Return to original directory
-        Set-Location $originalLocation
+        Set-Location -Path $originalLocation
         
-        # Delete temporary files
+        # Clean up all temporary files
         if ($allTempFiles.Count -gt 0) {
             Write-Host ""
             Write-Host "Cleaning up temporary files..." -ForegroundColor Yellow
-            $cleanedFileCount = 0
+            Write-Host "Total tracked files: $($allTempFiles.Count)" -ForegroundColor Gray
+            $cleanedCount = 0
+            $notFoundCount = 0
             foreach ($tempFile in $allTempFiles) {
                 if (Test-Path $tempFile) {
                     try {
                         Remove-Item $tempFile -Force -ErrorAction Stop
-                        $cleanedFileCount++
+                        $cleanedCount++
+                        Write-Host "  Removed: $(Split-Path -Leaf $tempFile)" -ForegroundColor Gray
                     } catch {
-                        Write-Host "Warning: Could not remove $tempFile" -ForegroundColor Yellow
+                        Write-Host "  Failed to remove: $(Split-Path -Leaf $tempFile)" -ForegroundColor Yellow
                     }
+                } else {
+                    $notFoundCount++
+                    Write-Host "  Already removed: $(Split-Path -Leaf $tempFile)" -ForegroundColor Gray
                 }
             }
-            if ($cleanedFileCount -gt 0) {
-                Write-Host "Cleaned up $cleanedFileCount temporary files" -ForegroundColor Green
-            }
+            Write-Host "Cleaned up: $cleanedCount files, Already removed: $notFoundCount files" -ForegroundColor Green
         }
     } catch {
         Write-Host "Warning: Cleanup failed: $($_.Exception.Message)" -ForegroundColor Yellow
