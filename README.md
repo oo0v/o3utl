@@ -57,7 +57,6 @@ cmd = bin\ffmpeg.exe -i "{INPUT}" -crf 23 "{INPUT}_output.mp4"
 ```
 
 - `{INPUT}` is replaced with your file path
-- Use quotes around `"{INPUT}"` for paths with spaces
 
 ## Built-in Presets
 
