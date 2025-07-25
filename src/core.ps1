@@ -7,8 +7,9 @@ param(
 # Error action setting
 $ErrorActionPreference = "Stop"
 
-# Record original location and temporary files
+# Record original location
 $originalLocation = Get-Location
+$tempDirectory = $null
 $allTempFiles = @()
 
 try {
@@ -31,6 +32,38 @@ try {
     # Set working directory to tasks.ini directory
     $WorkingDir = Split-Path -Parent (Resolve-Path -Path $ConfigFile).Path
     Set-Location -Path $WorkingDir
+
+    # Create dedicated temporary directory for this program
+    $tempDirectory = Join-Path $WorkingDir "tmp"
+    
+    # Cleanup existing temp directory if it exists
+    if (Test-Path $tempDirectory) {
+        Write-Host "Cleaning up existing temporary directory..." -ForegroundColor Yellow
+        try {
+            $tempFiles = Get-ChildItem -Path $tempDirectory -File -ErrorAction SilentlyContinue
+            $cleanedFileCount = 0
+            foreach ($tempFile in $tempFiles) {
+                try {
+                    Remove-Item $tempFile.FullName -Force -ErrorAction Stop
+                    $cleanedFileCount++
+                    Write-Host "  Removed: $($tempFile.Name)" -ForegroundColor Gray
+                } catch {
+                    Write-Host "  Failed to remove: $($tempFile.Name)" -ForegroundColor Yellow
+                }
+            }
+            
+            if ($cleanedFileCount -gt 0) {
+                Write-Host "Cleaned up $cleanedFileCount temporary files" -ForegroundColor Green
+            } else {
+                Write-Host "No temporary files to clean up" -ForegroundColor Gray
+            }
+        } catch {
+            Write-Host "Warning: Temp directory cleanup failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "Creating temporary directory: $tempDirectory" -ForegroundColor Cyan
+        New-Item -ItemType Directory -Path $tempDirectory -Force | Out-Null
+    }
 
     # bin directory path
     $BinDir = Join-Path -Path $ScriptDir -ChildPath "..\bin"
@@ -63,6 +96,53 @@ try {
         # Extract first word (binary name) from command
         $firstWord = ($Command -split '\s+')[0]
         return $firstWord
+    }
+
+    # Command line generation function
+    function CommandLine {
+        param(
+            [string]$CommandTemplate,
+            [string]$InputPath,
+            [string]$BinaryPath = ""
+        )
+        
+        # Expand environment variables first
+        $expandedCommand = [System.Environment]::ExpandEnvironmentVariables($CommandTemplate)
+        
+        # Replace binary path if provided
+        if (-not [string]::IsNullOrEmpty($BinaryPath)) {
+            $binaryName = Get-BinaryFromCommand $expandedCommand
+            $expandedCommand = $expandedCommand -replace "^$([regex]::Escape($binaryName))", "`"$BinaryPath`""
+        }
+        
+        # Handle all possible {INPUT} patterns
+        $patterns = @(
+            '"\{INPUT\}"',  # Already quoted
+            '\{INPUT\}'     # Not quoted
+        )
+        
+        $finalCommand = $expandedCommand
+        foreach ($pattern in $patterns) {
+            if ($expandedCommand -match $pattern) {
+                if ($pattern -eq '"\{INPUT\}"') {
+                    # Already quoted pattern - replace with quoted path
+                    $finalCommand = $expandedCommand -replace $pattern, "`"$InputPath`""
+                } else {
+                    # Unquoted pattern - add quotes if needed
+                    if ($InputPath -match '\s') {
+                        $finalCommand = $expandedCommand -replace $pattern, "`"$InputPath`""
+                    } else {
+                        $finalCommand = $expandedCommand -replace $pattern, $InputPath
+                    }
+                }
+                break
+            }
+        }
+        
+        # Clean up any double quotes that might have been created
+        $finalCommand = $finalCommand -replace '""', '"'
+        
+        return $finalCommand
     }
 
     # INI parsing function
@@ -229,7 +309,6 @@ try {
 
     # Execute each profile in parallel
     $processes = @()
-    $tempDir = [System.IO.Path]::GetTempPath()
     $windowIndex = 0
 
     foreach ($profileInfo in $validProfiles) {
@@ -240,14 +319,12 @@ try {
         # Generate unique task ID
         $taskId = "task_$(Get-Random)"
         
-        # Replace binary path in command
-        $binaryName = Get-BinaryFromCommand $cmd
-        $fullCmd = $cmd -replace "^$([regex]::Escape($binaryName))", "`"$binaryPath`""
-        $fullCmd = $fullCmd -replace '\{INPUT\}', ($InputFile -replace '"', '""')
+        # Use the command line function
+        $fullCmd = CommandLine -CommandTemplate $cmd -InputPath $InputFile -BinaryPath $binaryPath
         
         # Handle FFmpeg 2-pass log files with individual paths
         if ($fullCmd -match "-pass\s+[12]") {
-            $passLogFile = Join-Path $tempDir "ffmpeg2pass_${taskId}"
+            $passLogFile = Join-Path $tempDirectory "ffmpeg2pass_${taskId}"
             
             # Add -passlogfile option to both Pass 1 and Pass 2
             # First ffmpeg command (Pass 1)
@@ -264,12 +341,12 @@ try {
         Write-Host "Starting: $prof" -ForegroundColor Yellow
         Write-Host "Modified command: $fullCmd" -ForegroundColor Gray
         
-        # Result file path (considering special characters and escaping)
-        $resultFile = Join-Path $tempDir "o3enc_$(Get-Random).txt"
+        # Result file path
+        $resultFile = Join-Path $tempDirectory "result_${taskId}.txt"
         $allTempFiles += $resultFile
         
-        # Create temporary batch file (considering special characters and escaping)
-        $tempBatch = Join-Path $tempDir "o3enc_$(Get-Random).bat"
+        # Create temporary batch file
+        $tempBatch = Join-Path $tempDirectory "batch_${taskId}.bat"
         $allTempFiles += $tempBatch
         
         # Calculate window position
@@ -357,7 +434,7 @@ if %ERRORLEVEL% equ 0 (
 "@
         }
         
-        # Create temporary batch file (considering special characters and escaping)
+        # Create temporary batch file
         $batchCmd | Out-File -FilePath $tempBatch -Encoding ASCII
         
         # Start process (launch in normal window)
