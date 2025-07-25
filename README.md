@@ -1,23 +1,29 @@
 # o3utl
 
-This is a very simple Utility tool. You can register commands as tasks in advance and select them from the CUI to encode media in order. Tasks can be added or modified by editing tasks.ini.
+This is a command execution helper tool that simplifies media encoding and other command-line workflows. You can register commands as reusable tasks in advance and execute them through an command-line interface. Tasks can be customized by editing tasks.ini to fit your specific needs.
 
-## Setup
+## Requirements
 
-### FFmpeg Installation
-1. Download FFmpeg (gyan build) from: https://www.gyan.dev/ffmpeg/builds/
-2. Extract the downloaded archive
-3. Copy `ffmpeg.exe` to the `o3utl/bin/`
-4. The file structure should look like:
-   ```
-   o3utl/
-   ├── bin/
-   │   └── ffmpeg.exe
-   ├── src/
-   │   └── core.ps1
-   ├── o3utl.bat
-   └── tasks.ini
-   ```
+### System Requirements
+- Windows 10/11
+- PowerShell
+- NVIDIA RTX40,50+ (for all default presets)
+
+### Essential for default presets
+- **FFmpeg**
+  - Download FFmpeg (gyan build) from: https://www.gyan.dev/ffmpeg/builds/
+  - Extract and copy `ffmpeg.exe` to the `o3utl/bin/`
+  - All default presets run bin/ffmpeg.exe. If you want to use your own ffmpeg, modify the commands written in tasks.ini
+  - File structure:
+    ```
+    o3utl/
+    ├── bin/
+    │   └── ffmpeg.exe
+    ├── src/
+    │   └── core.ps1
+    ├── o3utl.bat
+    └── tasks.ini
+    ```
 
 ## Usage
 
@@ -25,14 +31,32 @@ This is a very simple Utility tool. You can register commands as tasks in advanc
    
    Drop input file onto o3utl.bat
 
-3. **Command Line**
+2. **Command Line**
    ```batch
    o3utl.bat "input_path" [task_name]
    ```
 
-4. **Interactive Mode**
+3. **Interactive Mode**
    - When no profile is specified, available tasks are listed
    - Select multiple tasks with comma-separated numbers (e.g., `1,3,5`)
+
+## Write Tasks
+
+Edit `tasks.ini` to add your own tasks:
+
+```ini
+[Task-Name]
+cmd = your_command "{INPUT}" output_options
+```
+
+Example:
+```ini
+[Custom-Encode]
+cmd = bin\ffmpeg.exe -i "{INPUT}" -crf 23 "{INPUT}_output.mp4"
+```
+
+- `{INPUT}` is replaced with your file path
+- Use quotes around `"{INPUT}"` for paths with spaces
 
 ## Built-in Presets
 
@@ -60,15 +84,3 @@ This is a very simple Utility tool. You can register commands as tasks in advanc
 - `FFmpeg-Iwara-720p60fps` - H.264 720p 60fps for Iwara
 - `FFmpeg-Iwara-720p30fps` - H.264 720p 30fps for Iwara
 - `FFmpeg-for-X` - H.264 1080p 30fps for X (Twitter)
-
-## Requirements
-
-### Essential
-- **FFmpeg**
-  - Download FFmpeg and place `ffmpeg.exe` in the `o3utl/bin/` directory
-  - All default presets run bin/ffmpeg.exe. If you want to use your own ffmpeg, modify the commands written in tasks.ini
-
-### System Requirements
-- Windows 10/11
-- PowerShell
-- NVIDIA RTX40,50+ (for all default presets)
