@@ -223,8 +223,8 @@ try {
         return "task_$([System.Guid]::NewGuid().ToString('N').Substring(0,8))"
     }
 
-    # FFmpeg process execution function
-    function Invoke-FFmpegProcess {
+    # Process execution function
+    function Invoke-Process {
         param(
             [string]$Command,
             [string]$WorkingDirectory
@@ -265,12 +265,12 @@ try {
         $taskIdentifier = New-UniqueTaskIdentifier
         $fullCommand = New-SafeCommandLine -CommandTemplate $commandTemplate -InputPath $InputFile
         
-        # FFmpeg 2-pass log file processing
+        # 2-pass log file processing
         $tempDirectory = [System.IO.Path]::GetTempPath()
         $passLogFile = $null
         
         if ($fullCommand -match "-pass\s+[12]") {
-            $passLogFile = Join-Path $tempDirectory "ffmpeg2pass_${taskIdentifier}"
+            $passLogFile = Join-Path $tempDirectory "2pass_${taskIdentifier}"
             
             # Add -passlogfile option to both Pass 1 and Pass 2
             $fullCommand = $fullCommand -replace "(-pass\s+1)", "-passlogfile `"$passLogFile`" `$1"
@@ -293,14 +293,14 @@ try {
                 $secondPassCommand = $commandParts[1].Trim()
                 
                 Write-Host "Starting Pass 1..." -ForegroundColor Cyan
-                Invoke-FFmpegProcess -Command $firstPassCommand -WorkingDirectory $WorkingDir
+                Invoke-Process -Command $firstPassCommand -WorkingDirectory $WorkingDir
                 
                 Write-Host "Pass 1 completed. Starting Pass 2..." -ForegroundColor Cyan
-                Invoke-FFmpegProcess -Command $secondPassCommand -WorkingDirectory $WorkingDir
+                Invoke-Process -Command $secondPassCommand -WorkingDirectory $WorkingDir
             } else {
                 # Single-pass processing
                 Write-Host "Starting task..." -ForegroundColor Cyan
-                Invoke-FFmpegProcess -Command $fullCommand -WorkingDirectory $WorkingDir
+                Invoke-Process -Command $fullCommand -WorkingDirectory $WorkingDir
             }
             
             Write-Host "Success: $profileName" -ForegroundColor Green
