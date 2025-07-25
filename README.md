@@ -7,7 +7,7 @@ This is a very simple Utility tool. You can register commands as tasks in advanc
 ### FFmpeg Installation
 1. Download FFmpeg (gyan build) from: https://www.gyan.dev/ffmpeg/builds/
 2. Extract the downloaded archive
-3. Copy `ffmpeg.exe` to the `o3utl/bin/` directory
+3. Copy `ffmpeg.exe` to the `o3utl/bin/`
 4. The file structure should look like:
    ```
    o3utl/
