@@ -253,7 +253,7 @@ try {
 
     # Execute sequentially for each profile
     Write-Host ""
-    Write-Host "Starting $($validProfiles.Count) task(s)..." -ForegroundColor Green
+    Write-Host "Starting $(@($validProfiles).Count) task(s)..." -ForegroundColor Green
 
     $completionResults = @()
     $failureCount = 0
@@ -329,7 +329,7 @@ try {
     # Final result determination
     if ($failureCount -gt 0) {
         Write-Host ""
-        Write-Host "$failureCount of $($completionResults.Count) tasks failed." -ForegroundColor Red
+        Write-Host "$failureCount of $(@($completionResults).Count) tasks failed." -ForegroundColor Red
         exit 1
     } else {
         Write-Host ""
