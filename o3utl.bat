@@ -7,11 +7,11 @@ endlocal
 exit /b !EXIT_CODE!
 
 :main
-REM Check for multiple arguments (reject multiple files)
-if not "%~3"=="" (
+REM Check for multiple files
+if not "%~2"=="" (
     echo Error: Multiple files not supported
     echo Usage: 
-    echo   %~nx0 ^<input_file^> [profile]
+    echo   %~nx0 ^<input_file^>
     echo   Only single file processing is allowed
     echo.
     echo Press any key to exit...
@@ -19,15 +19,14 @@ if not "%~3"=="" (
     exit /b 1
 )
 
-REM Argument check
+REM Usage check
 if "%~1"=="" (
     echo Usage: 
-    echo   %~nx0 ^<input_file^> [profile]
+    echo   %~nx0 ^<input_file^>
     echo   Or drag and drop a file onto this batch file
     echo.
     echo Arguments:
     echo   input_file  : Path to the file to process
-    echo   profile     : Optional processing profile
     echo.
     echo Press any key to exit...
     pause >nul
@@ -37,7 +36,7 @@ if "%~1"=="" (
 REM Input file path
 set "INPUT_FILE=%~1"
 
-REM File existence check
+REM Input file check
 if not exist "!INPUT_FILE!" (
     echo Error: File not found: !INPUT_FILE!
     echo Press any key to exit...
@@ -45,7 +44,7 @@ if not exist "!INPUT_FILE!" (
     exit /b 1
 )
 
-REM Check existence of core.ps1
+REM Core script check
 set "CORE_SCRIPT=%~dp0src\core.ps1"
 if not exist "!CORE_SCRIPT!" (
     echo Error: core.ps1 not found in src directory
@@ -58,14 +57,11 @@ if not exist "!CORE_SCRIPT!" (
 echo Processing started at %date% %time%
 echo Input file: !INPUT_FILE!
 
-REM Call PowerShell core module
-set "PROFILE=%~2"
+REM Execute PowerShell core
+set "PROFILE="
 
-REM Build PowerShell command line with bypass execution policy
+REM Build and execute PowerShell command
 set "PS_COMMAND=powershell.exe -ExecutionPolicy Bypass -File "!CORE_SCRIPT!" -InputFile "!INPUT_FILE!""
-if not "!PROFILE!"=="" (
-    set "PS_COMMAND=!PS_COMMAND! -Profile "!PROFILE!""
-)
 
 REM Execute PowerShell
 !PS_COMMAND!
