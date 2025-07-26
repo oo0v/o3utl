@@ -7,6 +7,18 @@ endlocal
 exit /b !EXIT_CODE!
 
 :main
+REM Check for multiple arguments (reject multiple files)
+if not "%~3"=="" (
+    echo Error: Multiple files not supported
+    echo Usage: 
+    echo   %~nx0 ^<input_file^> [profile]
+    echo   Only single file processing is allowed
+    echo.
+    echo Press any key to exit...
+    pause >nul
+    exit /b 1
+)
+
 REM Argument check
 if "%~1"=="" (
     echo Usage: 
@@ -49,7 +61,7 @@ echo Input file: !INPUT_FILE!
 REM Call PowerShell core module
 set "PROFILE=%~2"
 
-REM Build PowerShell command line
+REM Build PowerShell command line with bypass execution policy
 set "PS_COMMAND=powershell.exe -ExecutionPolicy Bypass -File "!CORE_SCRIPT!" -InputFile "!INPUT_FILE!""
 if not "!PROFILE!"=="" (
     set "PS_COMMAND=!PS_COMMAND! -Profile "!PROFILE!""

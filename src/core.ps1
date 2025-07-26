@@ -23,6 +23,12 @@ try {
     # Convert to absolute path
     $InputFile = (Resolve-Path -Path $InputFile).Path
 
+    # Generate base file path without extension
+    $InputFileInfo = Get-Item -Path $InputFile
+    $InputBaseName = [System.IO.Path]::GetFileNameWithoutExtension($InputFileInfo.Name)
+    $InputDirectory = $InputFileInfo.DirectoryName
+    $InputBaseWithPath = Join-Path $InputDirectory $InputBaseName
+
     # Load tasks.ini
     $ConfigFile = Join-Path -Path $ScriptDir -ChildPath "..\tasks.ini"
     if (-not (Test-Path -Path $ConfigFile -PathType Leaf)) {
@@ -33,7 +39,7 @@ try {
     $WorkingDir = Split-Path -Parent (Resolve-Path -Path $ConfigFile).Path
     Set-Location -Path $WorkingDir
 
-    # Create dedicated temporary directory for this program
+    # Create dedicated temporary directory
     $tempDirectory = Join-Path $WorkingDir "tmp"
     
     # Cleanup existing temp directory if it exists
@@ -99,51 +105,31 @@ try {
     }
 
     # Command line generation function
-    function CommandLine {
-        param(
-            [string]$CommandTemplate,
-            [string]$InputPath,
-            [string]$BinaryPath = ""
-        )
-        
-        # Expand environment variables first
-        $expandedCommand = [System.Environment]::ExpandEnvironmentVariables($CommandTemplate)
-        
-        # Replace binary path if provided
-        if (-not [string]::IsNullOrEmpty($BinaryPath)) {
-            $binaryName = Get-BinaryFromCommand $expandedCommand
-            $expandedCommand = $expandedCommand -replace "^$([regex]::Escape($binaryName))", "`"$BinaryPath`""
-        }
-        
-        # Handle all possible {INPUT} patterns
-        $patterns = @(
-            '"\{INPUT\}"',  # Already quoted
-            '\{INPUT\}'     # Not quoted
-        )
-        
-        $finalCommand = $expandedCommand
-        foreach ($pattern in $patterns) {
-            if ($expandedCommand -match $pattern) {
-                if ($pattern -eq '"\{INPUT\}"') {
-                    # Already quoted pattern - replace with quoted path
-                    $finalCommand = $expandedCommand -replace $pattern, "`"$InputPath`""
-                } else {
-                    # Unquoted pattern - add quotes if needed
-                    if ($InputPath -match '\s') {
-                        $finalCommand = $expandedCommand -replace $pattern, "`"$InputPath`""
-                    } else {
-                        $finalCommand = $expandedCommand -replace $pattern, $InputPath
-                    }
-                }
-                break
-            }
-        }
-        
-        # Clean up any double quotes that might have been created
-        $finalCommand = $finalCommand -replace '""', '"'
-        
-        return $finalCommand
+function CommandLine {
+    param(
+        [string]$CommandTemplate,
+        [string]$InputPath,
+        [string]$InputBasePath,  # Base path without extension for output files
+        [string]$BinaryPath = ""
+    )
+    
+    # Expand environment variables first
+    $expandedCommand = [System.Environment]::ExpandEnvironmentVariables($CommandTemplate)
+    
+    # Replace binary path if provided
+    if (-not [string]::IsNullOrEmpty($BinaryPath)) {
+        $binaryName = Get-BinaryFromCommand $expandedCommand
+        $expandedCommand = $expandedCommand -replace "^$([regex]::Escape($binaryName))", "`"$BinaryPath`""
     }
+    
+    # Replace {INPUT} with the input file path
+    $expandedCommand = $expandedCommand -replace '\{INPUT\}', $InputPath
+    
+    # Replace {INPUT_BASE} with base path without extension
+    $finalCommand = $expandedCommand -replace '\{INPUT_BASE\}', $InputBasePath
+    
+    return $finalCommand
+}
 
     # INI parsing function
     function Read-ConfigurationFile {
@@ -319,8 +305,8 @@ try {
         # Generate unique task ID
         $taskId = "task_$(Get-Random)"
         
-        # Use the command line function
-        $fullCmd = CommandLine -CommandTemplate $cmd -InputPath $InputFile -BinaryPath $binaryPath
+        # Use the command line function with base path for clean output naming
+        $fullCmd = CommandLine -CommandTemplate $cmd -InputPath $InputFile -InputBasePath $InputBaseWithPath -BinaryPath $binaryPath
         
         # Handle FFmpeg 2-pass log files with individual paths
         if ($fullCmd -match "-pass\s+[12]") {
@@ -437,10 +423,10 @@ if %ERRORLEVEL% equ 0 (
         # Create temporary batch file
         $batchCmd | Out-File -FilePath $tempBatch -Encoding ASCII
         
-        # Start process (launch in normal window)
+        # Start process
         $process = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$tempBatch`"" -PassThru -WindowStyle Normal
         
-        # Adjust window position after a short wait (execute in background)
+        # Adjust window position after a short wait
         Start-Job -ScriptBlock {
             param($processId, $x, $y, $safeProf)
             Start-Sleep -Seconds 1
