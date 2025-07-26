@@ -50,7 +50,7 @@ REM Call PowerShell core module
 set "PROFILE=%~2"
 
 REM Build PowerShell command line
-set "PS_COMMAND=powershell.exe -ExecutionPolicy RemoteSigned -File "!CORE_SCRIPT!" -InputFile "!INPUT_FILE!""
+set "PS_COMMAND=powershell.exe -ExecutionPolicy Bypass -File "!CORE_SCRIPT!" -InputFile "!INPUT_FILE!""
 if not "!PROFILE!"=="" (
     set "PS_COMMAND=!PS_COMMAND! -Profile "!PROFILE!""
 )
