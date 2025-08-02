@@ -60,7 +60,7 @@ cmd = bin\ffmpeg.exe -i "{INPUT}" -crf 23 "{INPUT_BASE}_task1.mp4"
 
 ## Built-in Tasks
 
-### General Encoding with FFmppeg
+### General Encoding with FFmpeg
 - `FFmpeg-HEVC-Proxy` - HEVC proxy for preview (vbr)
 - `FFmpeg-HEVC-LT` - High quality HEVC (constqp)
 - `FFmpeg-HEVC-XQ` - Extra high quality HEVC (constqp)
@@ -75,7 +75,7 @@ cmd = bin\ffmpeg.exe -i "{INPUT}" -crf 23 "{INPUT_BASE}_task1.mp4"
 - `FFmpeg-H264-ultra` - Ultra high quality H.264 (constqp)
 - `FFmpeg-AV1-720p` - AV1 720p (constqp)
 
-### Platform Optimized Encoding with FFmppeg
+### Platform Optimized Encoding with FFmpeg
 - `FFmpeg-Iwara-2160p60fps` - H.264 4K 60fps for Iwara
 - `FFmpeg-Iwara-2160p30fps` - H.264 4K 30fps for Iwara
 - `FFmpeg-Iwara-1440p60fps` - H.264 1440p 60fps for Iwara
