@@ -73,7 +73,6 @@ cmd = bin\ffmpeg.exe -i "{INPUT}" -crf 23 "{INPUT_BASE}_task1.mp4"
 - `FFmpeg-H264-1440p-LT` - H.264 1440p (bitrate)
 - `FFmpeg-H264-1440p-XQ` - H.264 1440p high quality (bitrate)
 - `FFmpeg-H264-ultra` - Ultra high quality H.264 (constqp)
-- `FFmpeg-AV1-720p` - AV1 720p (constqp)
 
 ### Platform Optimized Encoding with FFmpeg
 - `FFmpeg-Iwara-2160p60fps` - H.264 4K 60fps for Iwara
@@ -85,3 +84,4 @@ cmd = bin\ffmpeg.exe -i "{INPUT}" -crf 23 "{INPUT_BASE}_task1.mp4"
 - `FFmpeg-Iwara-720p60fps` - H.264 720p 60fps for Iwara
 - `FFmpeg-Iwara-720p30fps` - H.264 720p 30fps for Iwara
 - `FFmpeg-for-X` - H.264 720p 5000k-25000kbps AAC 128k for X
+- `FFmpeg-AV1-720p` - AV1 720p  **For posting videos in Iwara's image category (you can actually post videos as images)**
