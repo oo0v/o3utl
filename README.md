@@ -7,9 +7,9 @@ This is a command execution helper tool that simplifies media encoding and other
 ### System Requirements
 - Windows 10/11
 - PowerShell
-- NVIDIA RTX40,50+ (for all default presets)
+- NVIDIA RTX40,50+ (for all of default presets)
 
-### Essential for default presets
+### Essential for default tasks
 - **FFmpeg**
   - Download FFmpeg from: https://www.gyan.dev/ffmpeg/builds/
   - Create a `bin` folder inside the `o3utl` directory
