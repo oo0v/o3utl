@@ -62,11 +62,11 @@ cmd = bin\ffmpeg.exe -i "{INPUT}" -crf 23 "{INPUT_BASE}_task1.mp4"
 
 ### General Encoding with FFmpeg
 - `FFmpeg-HEVC-Proxy` - HEVC proxy for preview (vbr)
-- `FFmpeg-HEVC-LT` - High quality HEVC (constqp)
+- `FFmpeg-HEVC` - High quality HEVC (constqp)
 - `FFmpeg-HEVC-XQ` - Extra high quality HEVC (constqp)
 - `FFmpeg-H264-Proxy` - H.264 proxy for preview (vbr)
-- `FFmpeg-H264-LT` - High quality H.264 (constqp)  **Recommended for most cases**
-- `FFmpeg-H264-LT_from_MMD-rgb` - High quality H.264 (constqp)  **For MMD users, converts RGB to YUV preserving original colors**
+- `FFmpeg-H264` - High quality H.264 (constqp)  **Recommended for most cases**
+- `FFmpeg-H264_from_MMD-rgb` - High quality H.264 (constqp)  **For MMD users, converts RGB to YUV preserving original colors**
 - `FFmpeg-H264-XQ` - Extra high quality H.264 (constqp)
 - `FFmpeg-HEVC-1440p-LT` - HEVC 1440p (bitrate)
 - `FFmpeg-HEVC-1440p-XQ` - HEVC 1440p high quality (bitrate)
