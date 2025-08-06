@@ -63,17 +63,17 @@ cmd = bin\ffmpeg.exe -i "{INPUT}" -crf 23 "{INPUT_BASE}_task1.mp4"
 
 ### General Encoding with FFmpeg
 - `FFmpeg_MPEG-4-AVC_Proxy` - H.264 proxy for preview (vbr)
-- `FFmpeg_MPEG-4-AVC` - High quality H.264 (constqp) **Recommended for most cases**
+- `FFmpeg_MPEG-4-AVC` - H.264 (constqp) **Recommended for most cases**
 - `FFmpeg_MPEG-4-AVC_from_MMD_rgb` - High quality H.264 (constqp) **For MMD users, converts RGB to YUV preserving original colors**
 - `FFmpeg_MPEG-4-AVC_XQ` - Extra high quality H.264 (constqp)
 - `FFmpeg_MPEG-4-AVC_1440p_LT` - H.264 1440p (bitrate)
-- `FFmpeg_MPEG-4-AVC_1440p_XQ` - H.264 1440p high quality (bitrate)
+- `FFmpeg_MPEG-4-AVC_1440p_HQ` - H.264 1440p high quality (bitrate)
 - `FFmpeg_MPEG-4-AVC_ultra` - Ultra high quality H.264 (constqp)
 - `FFmpeg_HEVC_Proxy` - H.265 proxy for preview (vbr)
-- `FFmpeg_HEVC` - High quality H.265 (constqp)
+- `FFmpeg_HEVC` - H.265 (constqp)
 - `FFmpeg_HEVC_XQ` - Extra high quality H.265 (constqp)
 - `FFmpeg_HEVC_1440p_LT` - H.265 1440p (bitrate)
-- `FFmpeg_HEVC_1440p_XQ` - H.265 1440p high quality (bitrate)
+- `FFmpeg_HEVC_1440p_HQ` - H.265 1440p high quality (bitrate)
 
 ### Platform Optimized Encoding with FFmpeg
 - `FFmpeg_Iwara_2160p60fps` - H.264 4K 60fps for Iwara
