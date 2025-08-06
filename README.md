@@ -69,11 +69,11 @@ cmd = bin\ffmpeg.exe -i "{INPUT}" -crf 23 "{INPUT_BASE}_task1.mp4"
 - `FFmpeg_MPEG-4-AVC_1440p_LT` - H.264 1440p (bitrate)
 - `FFmpeg_MPEG-4-AVC_1440p_XQ` - H.264 1440p high quality (bitrate)
 - `FFmpeg_MPEG-4-AVC_ultra` - Ultra high quality H.264 (constqp)
-- `FFmpeg_HEVC_Proxy` - HEVC proxy for preview (vbr)
-- `FFmpeg_HEVC` - High quality HEVC (constqp)
-- `FFmpeg_HEVC_XQ` - Extra high quality HEVC (constqp)
-- `FFmpeg_HEVC_1440p_LT` - HEVC 1440p (bitrate)
-- `FFmpeg_HEVC_1440p_XQ` - HEVC 1440p high quality (bitrate)
+- `FFmpeg_HEVC_Proxy` - H.265 proxy for preview (vbr)
+- `FFmpeg_HEVC` - High quality H.265 (constqp)
+- `FFmpeg_HEVC_XQ` - Extra high quality H.265 (constqp)
+- `FFmpeg_HEVC_1440p_LT` - H.265 1440p (bitrate)
+- `FFmpeg_HEVC_1440p_XQ` - H.265 1440p high quality (bitrate)
 
 ### Platform Optimized Encoding with FFmpeg
 - `FFmpeg_Iwara_2160p60fps` - H.264 4K 60fps for Iwara
