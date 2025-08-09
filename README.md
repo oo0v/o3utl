@@ -90,4 +90,4 @@ cmd = bin\ffmpeg.exe -i "{INPUT}" -crf 23 "{INPUT_BASE}_task1.mp4"
 - `FFmpeg_Iwara_720p30fps` - H.264 720p 30fps for Iwara
 - `FFmpeg_for_X` - H.264 720p 5000k-25000kbps AAC 128k for X (Twitter)
 - `FFmpeg_AV1_720p` - WebM AV1 720p  
-   - For posting videos in Iwara's image category (you can actually post videos as images because Iwara allows .webm for some reason)**
+   - For posting videos in Iwara's image category (you can actually post videos as images because Iwara allows .webm for some reason)
