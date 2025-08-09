@@ -7,7 +7,7 @@ This is a command execution helper tool that simplifies media encoding and other
 ### System Requirements
 - Windows 10/11
 - PowerShell
-- NVIDIA RTX40,50+ (for all of default presets)
+- NVIDIA RTX40,50+ (for most of default presets)
 
 ### Essential for default tasks
 - **FFmpeg**
@@ -62,6 +62,7 @@ cmd = bin\ffmpeg.exe -i "{INPUT}" -crf 23 "{INPUT_BASE}_task1.mp4"
 ## Built-in Tasks
 
 ### General Encoding with FFmpeg
+- `FFmpeg_AV1_10bit` - AV1 (qp) **Less compatible than h264, but the most modern and optimal choice in most cases**
 - `FFmpeg_MPEG-4-AVC_Proxy` - H.264 proxy for preview (vbr)
 - `FFmpeg_MPEG-4-AVC` - H.264 (constqp) **Recommended for most cases**
 - `FFmpeg_MPEG-4-AVC_from_MMD_rgb` - High quality H.264 (constqp) **For MMD users, converts RGB to YUV preserving original colors**
