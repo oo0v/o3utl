@@ -62,10 +62,13 @@ cmd = bin\ffmpeg.exe -i "{INPUT}" -crf 23 "{INPUT_BASE}_task1.mp4"
 ## Built-in Tasks
 
 ### General Encoding with FFmpeg
-- `FFmpeg_AV1_10bit` - AV1 (2pass-bitrate) **Less compatible than h264, but the most modern and optimal choice in most cases**
+- `FFmpeg_AV1_10bit` - AV1 (2pass-bitrate)  
+  - Less compatible than h264, but the most modern and optimal choice in most cases
 - `FFmpeg_MPEG-4-AVC_Proxy` - H.264 proxy for preview (vbr)
-- `FFmpeg_MPEG-4-AVC` - H.264 (constqp) **Recommended for most cases**
-- `FFmpeg_MPEG-4-AVC_from_MMD_rgb` - High quality H.264 (constqp) **For MMD users, converts RGB to YUV preserving original colors**
+- `FFmpeg_MPEG-4-AVC` - H.264 (constqp)  
+   - Recommended for most cases
+- `FFmpeg_MPEG-4-AVC_from_MMD_rgb` - High quality H.264 (constqp)  
+   - For MMD users, converts RGB to YUV preserving original colors
 - `FFmpeg_MPEG-4-AVC_XQ` - Extra high quality H.264 (constqp)
 - `FFmpeg_MPEG-4-AVC_1440p_LT` - H.264 1440p (bitrate)
 - `FFmpeg_MPEG-4-AVC_1440p_HQ` - H.264 1440p high quality (bitrate)
@@ -86,4 +89,5 @@ cmd = bin\ffmpeg.exe -i "{INPUT}" -crf 23 "{INPUT_BASE}_task1.mp4"
 - `FFmpeg_Iwara_720p60fps` - H.264 720p 60fps for Iwara
 - `FFmpeg_Iwara_720p30fps` - H.264 720p 30fps for Iwara
 - `FFmpeg_for_X` - H.264 720p 5000k-25000kbps AAC 128k for X (Twitter)
-- `FFmpeg_AV1_720p` - WebM AV1 720p **For posting videos in Iwara's image category (you can actually post videos as images because Iwara allows .webm for some reason)**
+- `FFmpeg_AV1_720p` - WebM AV1 720p  
+   - For posting videos in Iwara's image category (you can actually post videos as images because Iwara allows .webm for some reason)**
