@@ -312,12 +312,16 @@ function CommandLine {
         if ($fullCmd -match "-pass\s+[12]") {
             $passLogFile = Join-Path $tempDirectory "ffmpeg2pass_${taskId}"
             
-            # Add -passlogfile option to both Pass 1 and Pass 2
+            # Add -passlogfile option only if not already present
             # First ffmpeg command (Pass 1)
-            $fullCmd = $fullCmd -replace "(-pass\s+1)", "-passlogfile `"$passLogFile`" `$1"
+            if ($fullCmd -notmatch '-passlogfile.*?-pass\s+1') {
+                $fullCmd = $fullCmd -replace "(-pass\s+1)", "-passlogfile `"$passLogFile`" `$1"
+            }
             
             # Second ffmpeg command (Pass 2, after &&)
-            $fullCmd = $fullCmd -replace "&&\s*([^&]*?)(-pass\s+2)", "&& `$1-passlogfile `"$passLogFile`" `$2"
+            if ($fullCmd -notmatch '&&.*?-passlogfile.*?-pass\s+2') {
+                $fullCmd = $fullCmd -replace "&&\s*([^&]*?)(-pass\s+2)", "&& `$1-passlogfile `"$passLogFile`" `$2"
+            }
             
             # Track log files for cleanup
             $allTempFiles += "${passLogFile}-0.log"
